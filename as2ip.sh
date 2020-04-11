@@ -4,16 +4,18 @@ threads=4
 mkdir -p data
 rm -rf data/*.txt
 
+command -v aggregate-prefixes >/dev/null 2>&1 || { echo >&2 "Please install aggregate-prefixes from https://pypi.org/project/aggregate-prefixes/"; exit 1; }
+
 get_ips() {
     local as=$1
     echo $as
     local ip
 
-    for ip in $(echo '!gas'$as | nc whois.radb.net 43 | sed '1,1d ; $ d'); do
+    for ip in $(echo '!gas'$as | nc whois.radb.net 43 | sed '1,1d ; $ d' | aggregate-prefixes); do
         echo $as,$ip >> data/$as.txt
     done
 
-    for ip in $(echo '!6as'$as | nc whois.radb.net 43 | sed '1,1d ; $ d'); do
+    for ip in $(echo '!6as'$as | nc whois.radb.net 43 | sed '1,1d ; $ d' | aggregate-prefixes); do
         echo $as,$ip >> data/$as.txt
     done
 }
@@ -26,4 +28,4 @@ printf "%d\n" {262144..270748} | xargs -P $threads -I {} bash -c 'get_ips "$@"' 
 printf "%d\n" {327680..329727} | xargs -P $threads -I {} bash -c 'get_ips "$@"' _ {}  # 32 bit AFRINIC
 printf "%d\n" {393216..399260} | xargs -P $threads -I {} bash -c 'get_ips "$@"' _ {}  # 32 bit ARIN
 
-cat $(ls -1v data/*.txt) | uniq > networks.txt
+cat $(ls -1v data/*.txt) | grep '/' | uniq > networks.txt
